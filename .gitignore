@@ -6,8 +6,8 @@ libltdl
 libtool
 config.*
 stamp-h1
-admsXml
-admsCheck
+admsXml/admsXml
+admsXml/admsCheck
 preprocessorLex.c
 verilogaLex.c
 verilogaYacc.[chy]
