@@ -44,10 +44,9 @@ if($cygpath_top_srcdir=`cygpath -ad $top_srcdir 2>/dev/null`)
   chomp $cygpath_top_srcdir;
   $cygpath_top_srcdir="\"$cygpath_top_srcdir\"";
 }
-my$SVN;
-$SVN=`svnversion -n $cygpath_top_srcdir 2>/dev/null` or $SVN="unknown";
-$SVN =~ s/^\d+://;
-print "svn version: $SVN\n";
+my$GIT;
+$GIT=`git log --pretty=format:'%h' -n 1` or $GIT="unknown";
+print "git version: $GIT\n";
 #parse adms.xml
 my $EA;
 my $EH;
@@ -90,7 +89,7 @@ $adms_h.=$BUILDER;
 $adms_h.="#ifndef adms_h\n";
 $adms_h.="#define adms_h\n";
 $adms_h.="\n";
-$adms_h.="#define SVN \"$SVN\" /* svn release version */\n";
+$adms_h.="#define GIT \"$GIT\" /* git release version */\n";
 $adms_h.=q@
 /*headers -- depend on compiler, OS, ...*/
 #  if defined(_MSC_VER)
@@ -110,10 +109,10 @@ $adms_h.=q@
 #      define inline
 #    endif
 #    define HAVE_FLOAT_H 1
-#    define HAVE_STDLIB_H 1 
-#    define HAVE_PUTENV 1 
-#    define HAVE_LOCALE 1 
-#    define HAVE_STRING_H 1 
+#    define HAVE_STDLIB_H 1
+#    define HAVE_PUTENV 1
+#    define HAVE_LOCALE 1
+#    define HAVE_STRING_H 1
 #    define HAVE_SYS_STAT_H 1
 #    include <io.h>
 #  else
@@ -151,7 +150,7 @@ $adms_h.=q@
 /* in case not Posix */
 #  if defined(_S_IFDIR)
 #    define ADMS_S_IFDIR _S_IFDIR
-#  else 
+#  else
 #    define ADMS_S_IFDIR S_IFDIR
 #  endif
 /* check OS */
@@ -171,6 +170,12 @@ $adms_h.=q@
 #    define ADMS_OS_MS
 #    define ADMS_OS_MSWIN32
 #    define ADMS_OS "MSWIN32"
+#  elif defined(__APPLE__)
+#    define ADMS_OS_DARWIN
+#    define ADMS_OS "DARWIN"
+#  elif defined(__linux)
+#    define ADMS_OS_LINUX
+#    define ADMS_OS "LINUX"
 #  else
 #    define ADMS_OS_UNKNOWN
 #    define ADMS_OS "UNKNOWN"
@@ -186,14 +191,27 @@ $adms_h.=q@
 #    ifndef WIN32
 #      define WIN32
 #    endif
-#    define ADMS_COMPILER_GCC 
-#    define ADMS_COMPILER "GCC" 
+#    define ADMS_COMPILER_GCC
+#    define ADMS_COMPILER "GCC"
 #  elif defined(_MSC_VER)
 #    ifndef WIN32
 #      define WIN32
 #    endif
 #    define ADMS_COMPILER_MSVC
 #    define ADMS_COMPILER "MSVC"
+#  elif defined(__APPLE__)
+#    if defined(__clang__)
+#      define ADMS_COMPILER_CLANG
+#      define ADMS_COMPILER "CLANG"
+#    elif defined(__GNUC__)
+#      define ADMS_COMPILER_GCC
+#      define ADMS_COMPILER "GCC"
+#    endif
+#  elif defined(__linux)
+#    if defined(__GNUC__)
+#      define ADMS_COMPILER_GCC
+#      define ADMS_COMPILER "GCC"
+#    endif
 #  else
 #    define ADMS_COMPILER_CC
 #    define ADMS_COMPILER "CC"
@@ -735,7 +753,7 @@ $adms_c.=$BUILDER;
 $adms_c.="#include \"adms.h\"\n";
 $adms_c.="const double adms_dzero=0.0;\n";
 $adms_c.="double adms_NAN;\n";
-#enumeration to string 
+#enumeration to string
 $adms_c.="FILE *stdadmstdbgimpl=NULL;\n";
 $adms_c.="#undef TTK\n";
 $adms_c.="#define TTK(tk) if(e==admse_##tk) return #tk;\n";
@@ -1868,7 +1886,7 @@ sub LLNN
 open admstpath_dtd,">$top_srcdir/admsXml/admstpath.dtd";
 my$dtd=q[
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Spec interne d'un chemin 'admstpath'. Validation: xmllint dbgp.xml -noout -postvalid -noblanks --> 
+<!-- Spec interne d'un chemin 'admstpath'. Validation: xmllint dbgp.xml -noout -postvalid -noblanks -->
 <!--
 Fichier dbgp.xml
 <?xml version="1.0"?>
@@ -1949,17 +1967,17 @@ sub EXCLUDECHILD
 sub EXCLUDE
 {
  my($type,$item)=@_;
- return "    if(mytransform->_$type$item) adms_message_fatal((\"transform does not support attribute '$item' - see %s\\n\",adms_transform_uid(mytransform)))\n"; 
+ return "    if(mytransform->_$type$item) adms_message_fatal((\"transform does not support attribute '$item' - see %s\\n\",adms_transform_uid(mytransform)))\n";
 }
 sub REQUIRE
 {
  my($type,$item)=@_;
- return "    if(!mytransform->_$type$item) adms_message_fatal((\"transform requires attribute '$item' - see %s\\n\",adms_transform_uid(mytransform)))\n"; 
+ return "    if(!mytransform->_$type$item) adms_message_fatal((\"transform requires attribute '$item' - see %s\\n\",adms_transform_uid(mytransform)))\n";
 }
 sub OBSOLETE
 {
  my($obsolete,$new)=@_;
- return "    if(!strcmp(mytransform->_name,\"$obsolete\")) adms_message_obsolete((\"%s: please use '$new' instead\\n\",adms_transform_uid(mytransform)))\n"; 
+ return "    if(!strcmp(mytransform->_name,\"$obsolete\")) adms_message_obsolete((\"%s: please use '$new' instead\\n\",adms_transform_uid(mytransform)))\n";
 }
 print admstpathYacc_y '
 static int admstpathlex (p_pparse mypparse);
@@ -2016,10 +2034,10 @@ foreach($admstxml->findnodes("//transform"))
     print admstpathYacc_y "  }\n";
   }
 }
-print admstpathYacc_y "}\n"; 
+print admstpathYacc_y "}\n";
 
-print admstpathYacc_y "void postxx (p_transform mytransform)\n"; 
-print admstpathYacc_y "{\n"; 
+print admstpathYacc_y "void postxx (p_transform mytransform)\n";
+print admstpathYacc_y "{\n";
 print admstpathYacc_y "  if(!is_admst(mytransform->_name))
   {
     p_slist l=mytransform->_attribute;
@@ -2048,7 +2066,7 @@ foreach($admstxml->findnodes("//transform"))
     print admstpathYacc_y "  }\n";
   }
 }
-print admstpathYacc_y "}\n"; 
+print admstpathYacc_y "}\n";
 
 print admstpathYacc_y 'void sanityxx (p_transform mytransform)'."\n";
 print admstpathYacc_y '{'."\n";
@@ -2063,8 +2081,8 @@ foreach($admstxml->findnodes("//transform"))
   }
   push @ids,"!strcmp(mytransform->_name,\"".xname($transform)."\")";
   print admstpathYacc_y "  else if(".(join "||",@ids).")\n  {\n";
-  print admstpathYacc_y &REQUIRECHILD if(defined xhaschild($transform) && (xhaschild($transform) eq "yes")); 
-  print admstpathYacc_y &EXCLUDECHILD if(defined xhaschild($transform) && (xhaschild($transform) eq "no")); 
+  print admstpathYacc_y &REQUIRECHILD if(defined xhaschild($transform) && (xhaschild($transform) eq "yes"));
+  print admstpathYacc_y &EXCLUDECHILD if(defined xhaschild($transform) && (xhaschild($transform) eq "no"));
   foreach($transform->findnodes("obsolete|exclude|attribute"))
   {
     if($_->nodeName eq "attribute")
@@ -2183,7 +2201,7 @@ foreach (@Location03)
     if($e eq "list" && $a eq "item") {$code="p_admst d=adms_admst_newpn(dot,dot,(p_admst)lii->data);";}
     elsif($d eq "basicstring")       {$code="p_admst d=adms_admst_newbs(ai,ai,(char*)lii->data);";}
     else                             {$code="p_admst d=adms_admst_newpa(ai,ai,lii->data);";}
-    print admstpathYacc_y 
+    print admstpathYacc_y
 "  else if(e==admse_$e)
   {
     p_slist lii=((p_$e)ai->_item.p)->_$a;
@@ -2852,8 +2870,8 @@ static p_slist adms_slist_sort_merge (p_slist myl0, p_slist myl1)
     {
       myli=myli->next=myl0;
       myl0=myl0->next;
-    } 
-    else 
+    }
+    else
     {
       myli=myli->next=myl1;
       myl1=myl1->next;
@@ -2865,19 +2883,19 @@ static p_slist adms_slist_sort_merge (p_slist myl0, p_slist myl1)
 static p_slist adms_slist_sort (p_slist list)
 {
   p_slist myl0, myl1;
-  if(!list) 
+  if(!list)
     return NULL;
-  if(!list->next) 
+  if(!list->next)
     return list;
-  myl0=list; 
+  myl0=list;
   myl1=list->next;
   while((myl1=myl1->next)!=NULL)
   {
-    if((myl1=myl1->next)==NULL) 
+    if((myl1=myl1->next)==NULL)
       break;
     myl0=myl0->next;
   }
-  myl1=myl0->next; 
+  myl1=myl0->next;
   myl0->next=NULL;
   return adms_slist_sort_merge(adms_slist_sort(list),adms_slist_sort(myl1));
 }
@@ -3290,7 +3308,7 @@ static p_slist slash (p_ptraverse p,p_slist paths,p_admst dot)
               lastnode->next=l,lastnode=l;
             else
               output1=lastnode=l;
-            n=l->next;  
+            n=l->next;
           }
           else
             n=l->next,deref((p_admst)l->data),free(l);
